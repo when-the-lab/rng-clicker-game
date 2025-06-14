@@ -2,7 +2,7 @@
 <html>
 <head>
   <meta charset="UTF-8">
-  <title>RNG Clicker TV Safe</title>
+  <title>RNG Clicker (TV Safe)</title>
   <style>
     body {
       font-family: sans-serif;
@@ -52,15 +52,26 @@
     ];
 
     const crafts = {
-      "Nhẫn may mắn": { cost: { "Pha lê": 2, "Đá quý": 1 }, effect: () => { luck += 5; logMessage("May mắn tăng!"); } },
+      "Nhẫn may mắn": {
+        cost: { "Pha lê": 2, "Đá quý": 1 },
+        effect: () => {
+          luck += 5;
+          logMessage("🍀 May mắn tăng lên +5!");
+        }
+      },
       "Giày gió": {
         cost: { "Sắt": 3, "Pha lê": 1 },
         effect: () => {
           if (rollSpeed <= MIN_DELAY) {
-            logMessage("Bạn đã đạt đến tối thiểu Speed/Delay!");
+            logMessage("⛔ Không thể craft thêm! Bạn đã đạt đến giới hạn tốc độ quay (1000ms).");
           } else {
-            rollSpeed = Math.max(MIN_DELAY, rollSpeed - 100);
-            logMessage("Tốc độ quay được cải thiện!");
+            rollSpeed -= 100;
+            if (rollSpeed < MIN_DELAY) rollSpeed = MIN_DELAY;
+            if (rollSpeed === MIN_DELAY) {
+              logMessage("⛔ Bạn đã đạt đến tối thiểu Speed/Delay!");
+            } else {
+              logMessage("✅ Tốc độ quay được cải thiện!");
+            }
           }
         }
       }
@@ -111,7 +122,9 @@
     function showInventory() {
       let inv = "🎒 Kho đồ:\n";
       for (let item in inventory) {
-        inv += `${item}: ${inventory[item]}\n`;
+        if (!item.startsWith("__")) {
+          inv += `${item}: ${inventory[item]}\n`;
+        }
       }
       inv += "\n🛠️ Craft đồ:\n";
       for (let item in crafts) {
@@ -119,7 +132,7 @@
           ([mat, qty]) => (inventory[mat] || 0) >= qty
         );
         if (canCraft) {
-          inv += `👉 ${item} - Nhấn để craft\n`;
+          inv += `👉 ${item} - Nhấn OK để craft\n`;
         } else {
           inv += `❌ ${item} - Thiếu nguyên liệu\n`;
         }
@@ -136,11 +149,13 @@
           }
         }
       }
+      updateStats();
     }
 
     function clearInventory() {
       inventory = {};
       logMessage("📦 Kho đã được xoá!");
+      updateStats();
     }
 
     function checkAchievements() {
