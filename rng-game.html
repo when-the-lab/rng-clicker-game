@@ -2,46 +2,46 @@
 <html>
 <head>
   <meta charset="UTF-8">
-  <title>RNG Clicker (TV Safe)</title>
+  <title>RNG Clicker</title>
   <style>
     body {
       font-family: sans-serif;
-      background: #f0f0f0;
-      color: #222;
+      background: #f9f9f9;
+      color: #333;
       text-align: center;
     }
     button {
-      padding: 10px 20px;
-      margin: 10px;
+      margin: 5px;
+      padding: 10px;
       font-size: 16px;
     }
     #log {
-      white-space: pre-line;
       background: #fff;
+      border: 1px solid #ccc;
       padding: 10px;
       height: 200px;
       overflow-y: auto;
-      border: 1px solid #ccc;
-      margin: 10px;
+      margin: 10px auto;
+      max-width: 500px;
     }
   </style>
 </head>
 <body>
-  <h1>RNG Clicker (TV Safe Version)</h1>
-  <button onclick="roll()">🎲 Quay</button>
-  <button onclick="toggleAutoRoll()">⚙️ Auto Roll: <span id="autoRollState">Tắt</span></button>
-  <button onclick="showInventory()">🎒 Kho đồ</button>
-  <button onclick="clearInventory()">🗑️ Xoá kho</button>
+  <h1>RNG Clicker Game</h1>
+  <button onclick="roll()">Quay</button>
+  <button onclick="toggleAutoRoll()">Auto Roll: <span id="autoRollState">Tắt</span></button>
+  <button onclick="showInventory()">Kho đồ</button>
+  <button onclick="clearInventory()">Xoá kho</button>
   <div id="stats"></div>
   <div id="log"></div>
 
   <script>
     let rollCount = 0;
-    let inventory = {};
     let autoRoll = false;
+    let inventory = {};
     let luck = 0;
     let rollSpeed = 3000;
-    const MIN_DELAY = 1000;
+    const MIN_SPEED = 1000;
 
     const drops = [
       { name: "Gỗ", chance: 0.5 },
@@ -56,55 +56,54 @@
         cost: { "Pha lê": 2, "Đá quý": 1 },
         effect: () => {
           luck += 5;
-          logMessage("🍀 May mắn tăng lên +5!");
-        }
+          log("Craft thành công: Nhẫn may mắn (+5 Luck)");
+        },
+        stat: "Luck +5"
       },
       "Giày gió": {
         cost: { "Sắt": 3, "Pha lê": 1 },
         effect: () => {
-          if (rollSpeed <= MIN_DELAY) {
-            logMessage("⛔ Không thể craft thêm! Bạn đã đạt đến giới hạn tốc độ quay (1000ms).");
+          if (rollSpeed <= MIN_SPEED) {
+            log("⛔ Đã đạt tốc độ quay tối thiểu!");
           } else {
             rollSpeed -= 100;
-            if (rollSpeed < MIN_DELAY) rollSpeed = MIN_DELAY;
-            if (rollSpeed === MIN_DELAY) {
-              logMessage("⛔ Bạn đã đạt đến tối thiểu Speed/Delay!");
-            } else {
-              logMessage("✅ Tốc độ quay được cải thiện!");
-            }
+            if (rollSpeed < MIN_SPEED) rollSpeed = MIN_SPEED;
+            log("Craft thành công: Giày gió (-100ms Speed)");
+            if (rollSpeed === MIN_SPEED) log("⛔ Bạn đã đạt đến tối thiểu Speed/Delay!");
           }
-        }
+        },
+        stat: "Speed -100ms"
       }
     };
 
     function roll() {
       rollCount++;
-      const drop = getDrop();
-      inventory[drop] = (inventory[drop] || 0) + 1;
-      logMessage(`🎉 Bạn nhận được: ${drop}`);
+      const item = getDrop();
+      inventory[item] = (inventory[item] || 0) + 1;
+      log("Bạn nhận được: " + item);
       updateStats();
       checkAchievements();
     }
 
     function getDrop() {
-      const roll = Math.random() * (1 + luck / 100);
+      let roll = Math.random() * (1 + luck / 100);
       let sum = 0;
       for (let item of drops) {
         sum += item.chance;
         if (roll <= sum) return item.name;
       }
-      return drops[0].name;
+      return "Gỗ";
     }
 
-    function logMessage(msg) {
-      const log = document.getElementById("log");
-      log.textContent += msg + "\n";
-      log.scrollTop = log.scrollHeight;
+    function log(msg) {
+      let logDiv = document.getElementById("log");
+      logDiv.textContent += msg + "\n";
+      logDiv.scrollTop = logDiv.scrollHeight;
     }
 
     function updateStats() {
       document.getElementById("stats").textContent =
-        `🔁 Rolls: ${rollCount} | 🍀 Luck: ${luck} | ⏱️ Speed: ${rollSpeed}ms`;
+        `Rolls: ${rollCount} | Luck: ${luck} | Speed: ${rollSpeed}ms`;
     }
 
     function toggleAutoRoll() {
@@ -120,52 +119,56 @@
     }
 
     function showInventory() {
-      let inv = "🎒 Kho đồ:\n";
+      let text = `Kho đồ:\n`;
       for (let item in inventory) {
-        if (!item.startsWith("__")) {
-          inv += `${item}: ${inventory[item]}\n`;
-        }
+        if (!item.startsWith("__")) text += `${item}: ${inventory[item]}\n`;
       }
-      inv += "\n🛠️ Craft đồ:\n";
+
+      text += `\nĐồ có thể chế tạo:\n`;
       for (let item in crafts) {
-        const canCraft = Object.entries(crafts[item].cost).every(
-          ([mat, qty]) => (inventory[mat] || 0) >= qty
+        const craft = crafts[item];
+        let canCraft = true;
+        let reqs = "";
+        for (let mat in craft.cost) {
+          const need = craft.cost[mat];
+          reqs += `${mat}(${need}) `;
+          if (!inventory[mat] || inventory[mat] < need) canCraft = false;
+        }
+        text += `${item} (${reqs}) → ${craft.stat} ${canCraft ? "[Có thể chế tạo]" : "[Thiếu nguyên liệu]"}\n`;
+      }
+
+      const choice = prompt(text + "\nGõ đúng tên đồ để chế tạo:");
+      if (choice && crafts[choice]) {
+        const craft = crafts[choice];
+        const canCraft = Object.entries(craft.cost).every(([mat, amt]) =>
+          (inventory[mat] || 0) >= amt
         );
         if (canCraft) {
-          inv += `👉 ${item} - Nhấn OK để craft\n`;
-        } else {
-          inv += `❌ ${item} - Thiếu nguyên liệu\n`;
-        }
-      }
-      alert(inv);
-      for (let item in crafts) {
-        const canCraft = Object.entries(crafts[item].cost).every(
-          ([mat, qty]) => (inventory[mat] || 0) >= qty
-        );
-        if (canCraft) {
-          crafts[item].effect();
-          for (let [mat, qty] of Object.entries(crafts[item].cost)) {
-            inventory[mat] -= qty;
+          for (let [mat, amt] of Object.entries(craft.cost)) {
+            inventory[mat] -= amt;
           }
+          craft.effect();
+          updateStats();
+        } else {
+          log("❌ Thiếu nguyên liệu để craft: " + choice);
         }
       }
-      updateStats();
     }
 
     function clearInventory() {
       inventory = {};
-      logMessage("📦 Kho đã được xoá!");
+      log("📦 Kho đã được xoá");
       updateStats();
     }
 
     function checkAchievements() {
-      if (rollCount >= 100 && !inventory.__ach100) {
-        inventory.__ach100 = true;
-        logMessage("🏆 Thành tựu: Quay 100 lần!");
+      if (rollCount >= 100 && !inventory.__ach1) {
+        inventory.__ach1 = true;
+        log("🏆 Thành tựu: Roll 100 lần!");
       }
-      if (rollSpeed <= 1000 && !inventory.__fast) {
-        inventory.__fast = true;
-        logMessage("🏆 Thành tựu: Speed dưới 1000ms!");
+      if (rollSpeed <= MIN_SPEED && !inventory.__ach2) {
+        inventory.__ach2 = true;
+        log("🏆 Thành tựu: Tốc độ đạt tối thiểu!");
       }
     }
 
