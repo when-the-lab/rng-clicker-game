@@ -1,242 +1,101 @@
 <!DOCTYPE html>
-<html lang="vi">
+<html>
 <head>
-<meta charset="UTF-8" />
-<title>RNG Clicker Game với Thống Kê</title>
-<style>
-  body {
-    background: black;
-    color: #0f0;
-    font-family: monospace;
-    text-align: center;
-    padding-top: 30px;
-  }
-  button {
-    font-size: 18px;
-    padding: 8px 16px;
-    margin: 6px;
-    border: 1px solid #0f0;
-    background: #111;
-    color: #0f0;
-    cursor: pointer;
-  }
-  #output, #inventory, #stats, #stats2 {
-    margin-top: 20px;
-    font-size: 18px;
-  }
-</style>
+  <meta charset="UTF-8">
+  <title>RNG Clicker Game</title>
+  <style>
+    body {
+      font-family: sans-serif;
+      background: #222;
+      color: white;
+      text-align: center;
+      padding: 20px;
+    }
+    button {
+      padding: 10px 20px;
+      margin: 5px;
+      font-size: 16px;
+      cursor: pointer;
+    }
+    #inventory, #stats {
+      margin-top: 20px;
+      font-size: 18px;
+    }
+  </style>
 </head>
 <body>
-  <h1>RNG Clicker Game với Thống Kê Roll</h1>
-  <button id="rollBtn" onclick="roll()">Rút nguyên liệu</button>
-  <button onclick="craft('luckPotion')">Craft Lá Bùa (+5% Luck)</button>
-  <button onclick="craft('speedBoots')">Craft Giày Tăng Tốc (+5% Speed)</button>
-  <button onclick="craft('luckyRing')">Craft Nhẫn May Mắn (+10% Luck)</button>
-  <button onclick="craft('speedGloves')">Craft Găng Tăng Tốc (+10% Speed)</button>
-  <button onclick="removeItem('wood')">Xóa 1 Gỗ</button>
-  <button onclick="removeItem('crystal')">Xóa 1 Pha lê</button>
-  <button onclick="removeItem('diamond')">Xóa 1 Kim cương</button>
-  <button onclick="viewInventory()">Xem kho</button>
-  <button onclick="resetGame()">Reset Game</button>
-  <button id="autoRollBtn" onclick="toggleAutoRoll()">Bật Auto Roll</button>
+  <h1>🎲 RNG Clicker Game</h1>
 
-  <div id="output">Kết quả hiển thị ở đây.</div>
-  <div id="inventory">
-    Gỗ: <span id="wood">0</span>/10 |
-    Pha lê: <span id="crystal">0</span>/5 |
-    Kim cương: <span id="diamond">0</span>/3
-  </div>
+  <button onclick="rollItem()">Rút nguyên liệu</button>
+  <button onclick="craftItem()">Craft</button>
+  <button onclick="clearInventory()">Xoá kho</button>
+
   <div id="stats">
-    Luck: <span id="luck">0%</span> | Roll Speed: <span id="speed">0%</span>
+    <p>🔁 Tổng số roll: <span id="roll-count">0</span></p>
+    <p>🍀 Luck: <span id="luck">1</span></p>
+    <p>⚡ Roll Speed: <span id="speed">1</span></p>
   </div>
-  <div id="stats2">
-    Tổng số lần roll: <span id="rollCount">0</span>
+
+  <div id="inventory">
+    <h2>📦 Kho đồ:</h2>
+    <ul id="items-list"></ul>
   </div>
 
-<script>
-  let gameData = JSON.parse(localStorage.getItem('rngGameData')) || {
-    wood: 0,
-    crystal: 0,
-    diamond: 0,
-    luck: 0,
-    speed: 0,
-    rollCount: 0
-  };
-
-  let { wood, crystal, diamond, luck, speed, rollCount } = gameData;
-  const maxLuck = 50;
-  const maxSpeed = 50;
-  let autoRolling = false;
-  let autoRollInterval;
-
-  function saveData() {
-    localStorage.setItem('rngGameData', JSON.stringify({ wood, crystal, diamond, luck, speed, rollCount }));
-  }
-
-  function update(msg) {
-    document.getElementById("output").textContent = msg;
-    document.getElementById("wood").textContent = wood;
-    document.getElementById("crystal").textContent = crystal;
-    document.getElementById("diamond").textContent = diamond;
-    document.getElementById("luck").textContent = luck + "%";
-    document.getElementById("speed").textContent = speed + "%";
-    document.getElementById("rollCount").textContent = rollCount;
-    saveData();
-  }
-
-  function roll() {
-    if (wood + crystal + diamond === 0) {
-      update("Bạn chưa có nguyên liệu để roll!");
-      return;
-    }
-    rollCount++;
-    // Xác suất cơ bản
-    let baseRates = {
-      diamond: 0.1,
-      crystal: 0.3,
-      wood: 0.6
+  <script>
+    const inventory = {
+      'Sắt': 0,
+      'Gỗ': 0,
+      'Đá': 0,
+      'Pha lê': 0
     };
-    let luckFactor = Math.min(luck / 100, 0.2);
-    let diamondRate = baseRates.diamond + luckFactor * 0.05;
-    let crystalRate = baseRates.crystal + luckFactor * 0.05;
-    let woodRate = 1 - diamondRate - crystalRate;
-    let r = Math.random();
-    let msg = "";
 
-    if (r < diamondRate) {
-      if (diamond >= 3) msg = "Kim cương: Kho đầy!";
-      else {
-        diamond++;
-        msg = "Nhận Kim cương";
-      }
-    } else if (r < diamondRate + crystalRate) {
-      if (crystal >= 5) msg = "Pha lê: Kho đầy!";
-      else {
-        crystal++;
-        msg = "Nhận Pha lê";
-      }
-    } else {
-      if (wood >= 10) msg = "Gỗ: Kho đầy!";
-      else {
-        wood++;
-        msg = "Nhận Gỗ";
+    let rollCount = 0;
+    let luck = 1;
+    let speed = 1;
+
+    function updateStats() {
+      document.getElementById('roll-count').textContent = rollCount;
+      document.getElementById('luck').textContent = luck;
+      document.getElementById('speed').textContent = speed;
+
+      const list = document.getElementById('items-list');
+      list.innerHTML = '';
+      for (let item in inventory) {
+        const li = document.createElement('li');
+        li.textContent = `${item}: ${inventory[item]}`;
+        list.appendChild(li);
       }
     }
-    update(msg);
-  }
 
-  function craft(item) {
-    switch(item) {
-      case 'luckPotion':
-        if (wood >= 2 && diamond >= 1) {
-          if (luck >= maxLuck) {
-            update("Luck đã đạt tối đa!");
-            return;
-          }
-          wood -= 2;
-          diamond--;
-          luck = Math.min(luck + 5, maxLuck);
-          update("Craft Lá Bùa +5% Luck");
-        } else update("Thiếu nguyên liệu để craft Lá Bùa");
-        break;
-      case 'speedBoots':
-        if (crystal >= 2 && wood >= 1) {
-          if (speed >= maxSpeed) {
-            update("Speed đã đạt tối đa!");
-            return;
-          }
-          crystal -= 2;
-          wood--;
-          speed = Math.min(speed + 5, maxSpeed);
-          update("Craft Giày Tăng Tốc +5% Speed");
-        } else update("Thiếu nguyên liệu để craft Giày Tăng Tốc");
-        break;
-      case 'luckyRing':
-        if (diamond >= 2 && crystal >= 1) {
-          if (luck >= maxLuck) {
-            update("Luck đã đạt tối đa!");
-            return;
-          }
-          diamond -= 2;
-          crystal--;
-          luck = Math.min(luck + 10, maxLuck);
-          update("Craft Nhẫn May Mắn +10% Luck");
-        } else update("Thiếu nguyên liệu để craft Nhẫn May Mắn");
-        break;
-      case 'speedGloves':
-        if (crystal >= 2 && diamond >= 1) {
-          if (speed >= maxSpeed) {
-            update("Speed đã đạt tối đa!");
-            return;
-          }
-          crystal -= 2;
-          diamond--;
-          speed = Math.min(speed + 10, maxSpeed);
-          update("Craft Găng Tăng Tốc +10% Speed");
-        } else update("Thiếu nguyên liệu để craft Găng Tăng Tốc");
-        break;
+    function rollItem() {
+      const items = ['Sắt', 'Gỗ', 'Đá', 'Pha lê'];
+      const rolled = items[Math.floor(Math.random() * items.length)];
+      inventory[rolled]++;
+      rollCount++;
+      updateStats();
     }
-  }
 
-  function removeItem(item) {
-    if (item === "wood" && wood > 0) {
-      wood--;
-      update("Xóa 1 Gỗ");
-    } else if (item === "crystal" && crystal > 0) {
-      crystal--;
-      update("Xóa 1 Pha lê");
-    } else if (item === "diamond" && diamond > 0) {
-      diamond--;
-      update("Xóa 1 Kim cương");
-    } else update("Không còn để xóa!");
-  }
-
-  function viewInventory() {
-    update(`Kho: ${wood} Gỗ, ${crystal} Pha lê, ${diamond} Kim cương — Luck: ${luck}%, Speed: ${speed}%`);
-  }
-
-  function resetGame() {
-    wood = 0;
-    crystal = 0;
-    diamond = 0;
-    luck = 0;
-    speed = 0;
-    rollCount = 0;
-    stopAutoRoll();
-    saveData();
-    update("Game đã được reset!");
-  }
-
-  function toggleAutoRoll() {
-    if (autoRolling) {
-      stopAutoRoll();
-    } else {
-      startAutoRoll();
+    function craftItem() {
+      if (inventory['Sắt'] >= 1 && inventory['Gỗ'] >= 1 && inventory['Đá'] >= 1) {
+        inventory['Sắt']--;
+        inventory['Gỗ']--;
+        inventory['Đá']--;
+        luck += Math.floor(Math.random() * 3) + 1; // +1~3
+        speed += Math.floor(Math.random() * 2) + 1; // +1~2
+        updateStats();
+      } else {
+        alert("Thiếu nguyên liệu để craft! (Cần Sắt, Gỗ, Đá)");
+      }
     }
-  }
 
-  function startAutoRoll() {
-    if (speed <= 0) {
-      update("Cần có Roll Speed để bật Auto Roll!");
-      return;
+    function clearInventory() {
+      for (let item in inventory) {
+        inventory[item] = 0;
+      }
+      updateStats();
     }
-    autoRolling = true;
-    document.getElementById("autoRollBtn").textContent = "Tắt Auto Roll";
-    let delay = Math.max(200, 1000 - speed * 10);
-    autoRollInterval = setInterval(() => {
-      roll();
-    }, delay);
-    update("Auto Roll đã bật!");
-  }
 
-  function stopAutoRoll() {
-    autoRolling = false;
-    clearInterval(autoRollInterval);
-    document.getElementById("autoRollBtn").textContent = "Bật Auto Roll";
-    update("Auto Roll đã tắt!");
-  }
-
-  update("Chào mừng bạn chơi RNG Clicker!");
-</script>
+    updateStats(); // init
+  </script>
 </body>
 </html>
