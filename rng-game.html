@@ -2,100 +2,143 @@
 <html>
 <head>
   <meta charset="UTF-8">
-  <title>RNG Clicker Game</title>
+  <title>RNG Clicker Game Full</title>
   <style>
-    body {
-      font-family: sans-serif;
-      background: #222;
-      color: white;
-      text-align: center;
-      padding: 20px;
-    }
-    button {
-      padding: 10px 20px;
-      margin: 5px;
-      font-size: 16px;
-      cursor: pointer;
-    }
-    #inventory, #stats {
-      margin-top: 20px;
-      font-size: 18px;
-    }
+    body{font-family:sans-serif;background:#111;color:#eee;text-align:center;padding:20px;}
+    button{margin:6px;padding:10px 16px;font-size:16px;}
+    .craft{margin:12px 0;}
+    #notif{margin-top:10px;color:#0f0;font-weight:bold;}
   </style>
 </head>
 <body>
-  <h1>🎲 RNG Clicker Game</h1>
+  <h1>🎲 RNG Clicker Full</h1>
 
-  <button onclick="rollItem()">Rút nguyên liệu</button>
-  <button onclick="craftItem()">Craft</button>
-  <button onclick="clearInventory()">Xoá kho</button>
+  <div>
+    <button id="rollBtn" onclick="triggerRoll()">Rút nguyên liệu</button>
+    <button onclick="toggleAuto()">{{auto?'Tắt Auto':'Bật Auto'}}</button>
+    <button onclick="clearAll()">Xoá kho</button>
+  </div>
 
   <div id="stats">
-    <p>🔁 Tổng số roll: <span id="roll-count">0</span></p>
-    <p>🍀 Luck: <span id="luck">1</span></p>
-    <p>⚡ Roll Speed: <span id="speed">1</span></p>
+    Tổng roll: <span id="rollCount">0</span> |
+    Luck: <span id="luck">1</span> |
+    Speed: <span id="speed">1</span> |
+    Delay: <span id="delay">3000</span> ms
   </div>
 
-  <div id="inventory">
-    <h2>📦 Kho đồ:</h2>
-    <ul id="items-list"></ul>
-  </div>
+  <div id="notif"></div>
 
-  <script>
-    const inventory = {
-      'Sắt': 0,
-      'Gỗ': 0,
-      'Đá': 0,
-      'Pha lê': 0
-    };
+  <h2>📦 Kho nguyên liệu</h2>
+  <ul id="inv"></ul>
 
-    let rollCount = 0;
-    let luck = 1;
-    let speed = 1;
+  <h2>🛠 Craft đồ (miễn là đủ nguyên liệu)</h2>
+  <div class="craft"><button onclick="craft('Lucky Ring')">Lucky Ring</button> (2 Pha lê, 1 Sắt → +5 Luck)</div>
+  <div class="craft"><button onclick="craft('Wind Boots')">Wind Boots</button> (1 Đá, 1 Sắt → +3 Speed + giảm delay)</div>
+  <div class="craft"><button onclick="craft('Soul Hat')">Soul Hat</button> (1 Đá quý, 1 Pha lê → +10 Luck)</div>
 
-    function updateStats() {
-      document.getElementById('roll-count').textContent = rollCount;
-      document.getElementById('luck').textContent = luck;
-      document.getElementById('speed').textContent = speed;
+<script>
+const rates = [
+  ['Đá quý',0.01],
+  ['Pha lê',0.09],
+  ['Sắt',0.20],
+  ['Đá',0.30],
+  ['Gỗ',0.40],
+];
+let inv={},rollCount=0,luck=1,speed=1,delay=3000,auto=false,autoTimer;
 
-      const list = document.getElementById('items-list');
-      list.innerHTML = '';
-      for (let item in inventory) {
-        const li = document.createElement('li');
-        li.textContent = `${item}: ${inventory[item]}`;
-        list.appendChild(li);
-      }
+function save(){
+  localStorage.setItem('rngData',JSON.stringify({inv,rollCount,luck,speed,delay}));
+}
+function load(){
+  const d=JSON.parse(localStorage.getItem('rngData')||'{}');
+  inv=d.inv||{}; rates.forEach(r=>inv[r[0]]=inv[r[0]]||0);
+  rollCount=d.rollCount||0; luck=d.luck||1; speed=d.speed||1; delay=d.delay||3000;
+}
+function upd(){
+  document.getElementById('rollCount').textContent=rollCount;
+  document.getElementById('luck').textContent=luck;
+  document.getElementById('speed').textContent=speed;
+  document.getElementById('delay').textContent=delay;
+  // inventory
+  const ul = document.getElementById('inv'); ul.innerHTML='';
+  for(let [name] of rates){
+    const li = document.createElement('li');
+    li.textContent=`${name}: ${inv[name]}`;
+    ul.appendChild(li);
+  }
+  save();
+}
+
+function doRoll(){
+  rollCount++;
+  let r=Math.random(),sum=0,item='Gỗ';
+  for(let [name,rate] of rates){
+    const adj=rate * (name!=='Đá quý'? (1 + luck/100):1);
+    sum+=adj;
+    if(r<sum){
+      item=name; break;
     }
+  }
+  inv[item]++; upd();
+  notify(`Bạn nhận được: ${item}`);
+  checkAch(item);
+}
 
-    function rollItem() {
-      const items = ['Sắt', 'Gỗ', 'Đá', 'Pha lê'];
-      const rolled = items[Math.floor(Math.random() * items.length)];
-      inventory[rolled]++;
-      rollCount++;
-      updateStats();
-    }
+function triggerRoll(){
+  if(!auto) doRoll();
+}
 
-    function craftItem() {
-      if (inventory['Sắt'] >= 1 && inventory['Gỗ'] >= 1 && inventory['Đá'] >= 1) {
-        inventory['Sắt']--;
-        inventory['Gỗ']--;
-        inventory['Đá']--;
-        luck += Math.floor(Math.random() * 3) + 1; // +1~3
-        speed += Math.floor(Math.random() * 2) + 1; // +1~2
-        updateStats();
-      } else {
-        alert("Thiếu nguyên liệu để craft! (Cần Sắt, Gỗ, Đá)");
-      }
-    }
+function toggleAuto(){
+  auto=!auto;
+  clearTimeout(autoTimer);
+  if(auto){
+    autoTimer=setTimeout(autoLoop,delay);
+    document.getElementById('rollBtn').disabled=true;
+  } else document.getElementById('rollBtn').disabled=false;
+}
 
-    function clearInventory() {
-      for (let item in inventory) {
-        inventory[item] = 0;
-      }
-      updateStats();
-    }
+function autoLoop(){
+  doRoll();
+  if(auto) autoTimer=setTimeout(autoLoop,delay);
+}
 
-    updateStats(); // init
-  </script>
+function craft(name){
+  if(name==='Lucky Ring' && inv['Pha lê']>=2 && inv['Sắt']>=1){
+    inv['Pha lê']-=2;inv['Sắt']--;luck+=5;notify('Craft Lucky Ring! +5 Luck');
+  }
+  else if(name==='Wind Boots' && inv['Đá']>=1 && inv['Sắt']>=1){
+    inv['Đá']--;inv['Sắt']--;speed+=3;delay=Math.max(300,delay-200);notify('Craft Wind Boots! +3 Speed');
+  }
+  else if(name==='Soul Hat' && inv['Đá quý']>=1 && inv['Pha lê']>=1){
+    inv['Đá quý']--;inv['Pha lê']--;luck+=10;notify('Craft Soul Hat! +10 Luck');
+  }
+  else return notify('Thiếu nguyên liệu để craft');
+  upd();
+}
+
+function clearAll(){
+  if(!confirm('Bạn muốn xoá tất cả dữ liệu?')) return;
+  inv={},rates.forEach(r=>inv[r[0]]=0);
+  rollCount=0;luck=1;speed=1;delay=3000;
+  clearTimeout(autoTimer);auto=false;document.getElementById('rollBtn').disabled=false;
+  upd(); notify('Game reset!');
+}
+
+function notify(msg){
+  const d=document.getElementById('notif');
+  d.textContent=msg;
+  setTimeout(()=>{if(d.textContent===msg)d.textContent=''},2000);
+}
+
+function checkAch(item){
+  if(rollCount===100) notify('🏆 Thành tựu: Roll 100 lần!');
+  if(luck>=20) notify('🏆 Thành tựu: Luck ≥ 20!');
+  if(speed>=10) notify('🏆 Thành tựu: Speed ≥ 10!');
+  if(item==='Đá quý') notify('🏆 Thành tựu: Lấy được Đá quý!');
+}
+window.onload=()=>{
+  load(); upd();
+};
+</script>
 </body>
 </html>
